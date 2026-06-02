@@ -1,0 +1,30 @@
+# Configurazione Supabase CLI per lo sviluppo locale.
+# Vedi: https://supabase.com/docs/guides/cli/config
+project_id = "qrticketsystem"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+# Aggiungi qui l'URL di GitHub Pages dopo il deploy, es:
+# "https://<utente>.github.io"
+additional_redirect_urls = ["http://localhost:5173"]
+jwt_expiry = 3600
+enable_signup = false   # gli operatori vengono creati dall'admin, non si auto-registrano
+
+[auth.email]
+enable_confirmations = false
