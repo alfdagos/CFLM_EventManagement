@@ -104,7 +104,7 @@ export function TicketView() {
           <div className="result-screen err" style={{ marginTop: 8 }}>
             <div className="big">🚫</div>
             <h2>Biglietto revocato</h2>
-            <p className="muted">Contatta l'organizzazione per maggiori dettagli.</p>
+            <p className="muted">Contatta il Comitato per maggiori dettagli.</p>
           </div>
         )}
       </div>

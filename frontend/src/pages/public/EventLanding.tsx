@@ -40,7 +40,7 @@ export function EventLanding() {
             <p className="muted">
               Apri il link personale che ti è stato condiviso per vedere il tuo QR
               code e lo stato del biglietto. I biglietti vengono emessi
-              dall'organizzazione.
+              dal Comitato.
             </p>
           </div>
         </div>
