@@ -11,12 +11,14 @@ const READER_ID = 'reader';
 export function Scanner() {
   const { profile, signOut } = useAuth();
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const busyRef = useRef(false); // evita scansioni multiple ravvicinate
+  const busyRef = useRef(false); // un check-in alla volta
+  const lastTokenRef = useRef<string | null>(null); // ultimo token processato (anti-loop)
   const [result, setResult] = useState<ValidationResponse | null>(null);
   const [cameraError, setCameraError] = useState('');
   const [manualToken, setManualToken] = useState('');
 
-  // Avvia la fotocamera al montaggio.
+  // Avvia la fotocamera una sola volta. Il div #reader resta SEMPRE montato
+  // (il risultato è un overlay): così la libreria non perde il proprio nodo.
   useEffect(() => {
     const html5 = new Html5Qrcode(READER_ID, { verbose: false });
     scannerRef.current = html5;
@@ -28,18 +30,26 @@ export function Scanner() {
         (decoded) => onDecoded(decoded),
         () => {} // ignora i frame senza QR
       )
-      .catch(() => setCameraError('Impossibile accedere alla fotocamera. Concedi i permessi o usa l\'inserimento manuale.'));
+      .catch(() =>
+        setCameraError(
+          "Impossibile accedere alla fotocamera. Concedi i permessi o usa l'inserimento manuale."
+        )
+      );
 
     return () => {
-      // stop best-effort all'unmount
       html5.stop().catch(() => {});
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function process(token: string) {
-    if (busyRef.current || !token) return;
+  // dedup=true per le scansioni dalla camera: ignora riletture dello stesso
+  // biglietto già processato finché non se ne presenta uno diverso.
+  async function process(token: string, dedup: boolean) {
+    if (!token || busyRef.current) return;
+    if (dedup && token === lastTokenRef.current) return;
+
     busyRef.current = true;
+    lastTokenRef.current = token;
     try {
       await scannerRef.current?.pause(true);
     } catch {
@@ -54,12 +64,14 @@ export function Scanner() {
   }
 
   function onDecoded(decoded: string) {
-    void process(extractToken(decoded));
+    void process(extractToken(decoded), true);
   }
 
   function next() {
     setResult(null);
     busyRef.current = false;
+    // lastTokenRef resta valorizzato: se lo stesso QR è ancora inquadrato non
+    // viene rivalidato; un biglietto diverso (token diverso) viene processato.
     try {
       scannerRef.current?.resume();
     } catch {
@@ -69,8 +81,9 @@ export function Scanner() {
 
   function onManualSubmit(e: React.FormEvent) {
     e.preventDefault();
-    void process(extractToken(manualToken));
+    const token = extractToken(manualToken);
     setManualToken('');
+    void process(token, false); // inserimento manuale: sempre processato
   }
 
   return (
@@ -85,32 +98,45 @@ export function Scanner() {
       </div>
 
       <div className="container" style={{ maxWidth: 480 }}>
-        {result ? (
-          <ResultCard res={result} onNext={next} />
-        ) : (
-          <>
-            <h2 className="center">Inquadra il QR del biglietto</h2>
-            <div id={READER_ID} />
-            {cameraError && <div className="alert err" style={{ marginTop: 12 }}>{cameraError}</div>}
+        <h2 className="center">Inquadra il QR del biglietto</h2>
+        {/* Sempre montato: l'overlay del risultato lo copre senza rimuoverlo. */}
+        <div id={READER_ID} />
+        {cameraError && <div className="alert err" style={{ marginTop: 12 }}>{cameraError}</div>}
 
-            <form onSubmit={onManualSubmit} className="card" style={{ marginTop: 18 }}>
-              <label htmlFor="manual">Inserimento manuale (token o link)</label>
-              <div className="row">
-                <input
-                  id="manual"
-                  value={manualToken}
-                  onChange={(e) => setManualToken(e.target.value)}
-                  placeholder="es. Ab3..."
-                  style={{ flex: 1 }}
-                />
-                <button className="btn cyan" type="submit">
-                  Verifica
-                </button>
-              </div>
-            </form>
-          </>
-        )}
+        <form onSubmit={onManualSubmit} className="card" style={{ marginTop: 18 }}>
+          <label htmlFor="manual">Inserimento manuale (token o link)</label>
+          <div className="row">
+            <input
+              id="manual"
+              value={manualToken}
+              onChange={(e) => setManualToken(e.target.value)}
+              placeholder="es. Ab3..."
+              style={{ flex: 1 }}
+            />
+            <button className="btn cyan" type="submit">
+              Verifica
+            </button>
+          </div>
+        </form>
       </div>
+
+      {result && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(8, 17, 31, 0.92)',
+            display: 'grid',
+            placeItems: 'center',
+            zIndex: 50,
+            padding: 16,
+          }}
+        >
+          <div style={{ width: '100%', maxWidth: 420 }}>
+            <ResultCard res={result} onNext={next} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
