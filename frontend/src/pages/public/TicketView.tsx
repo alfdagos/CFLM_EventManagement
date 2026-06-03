@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { getPublicTicket } from '../../lib/api';
 import { qrDataUrl, ticketUrl } from '../../lib/qr';
 import { formatDate, formatDateTime } from '../../lib/format';
-import { printTicket } from '../../lib/print';
+import { printTicket, downloadTicketPdf, type PrintTicketData } from '../../lib/print';
 import { EventInfo } from '../../components/EventInfo';
 import { StatusBadge } from '../../components/StatusBadge';
 import { Spinner } from '../../components/Spinner';
@@ -61,6 +61,16 @@ export function TicketView() {
 
   const valid = ticket.status === 'valid';
 
+  const ticketData = (): PrintTicketData => ({
+    holderName: ticket.holder_name,
+    qrDataUrl: qr,
+    url: ticketUrl(token),
+    eventTitle: ticket.event_title,
+    eventDate: ticket.event_starts_at ? formatDate(ticket.event_starts_at) : null,
+    eventTime: ticket.event_time_label,
+    eventLocation: ticket.event_location,
+  });
+
   return (
     <div className="container">
       <div className="card">
@@ -88,25 +98,20 @@ export function TicketView() {
             <div style={{ marginTop: 12 }}>
               <StatusBadge status="valid" />
             </div>
-            <div style={{ marginTop: 16 }}>
+            <div className="row" style={{ marginTop: 16, justifyContent: 'center' }}>
               <button
                 className="btn secondary sm"
-                onClick={() =>
-                  printTicket({
-                    holderName: ticket.holder_name,
-                    qrDataUrl: qr,
-                    url: ticketUrl(token),
-                    eventTitle: ticket.event_title,
-                    eventDate: ticket.event_starts_at
-                      ? formatDate(ticket.event_starts_at)
-                      : null,
-                    eventTime: ticket.event_time_label,
-                    eventLocation: ticket.event_location,
-                  })
-                }
+                onClick={() => printTicket(ticketData())}
                 disabled={!qr}
               >
-                🖨️ Stampa biglietto
+                🖨️ Stampa
+              </button>
+              <button
+                className="btn secondary sm"
+                onClick={() => void downloadTicketPdf(ticketData())}
+                disabled={!qr}
+              >
+                ⬇️ Scarica PDF
               </button>
             </div>
           </>

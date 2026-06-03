@@ -1,6 +1,6 @@
-// Apre una finestra con una versione stampabile del biglietto e lancia la stampa.
-// Layout chiaro (sfondo bianco) ottimizzato per la carta, indipendente dal tema
-// scuro dell'app. Il QR è un data-URL, quindi è già disponibile (nessun caricamento).
+// Stampa e download PDF della versione "biglietto".
+// - printTicket: apre una finestra con layout chiaro e lancia la stampa del browser.
+// - downloadTicketPdf: genera un vero PDF scaricabile (jsPDF, import dinamico).
 
 export interface PrintTicketData {
   holderName: string;
@@ -18,6 +18,20 @@ function esc(s: string | null | undefined): string {
   );
 }
 
+function slug(s: string): string {
+  return (
+    s
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '') // rimuove i diacritici (accenti)
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'biglietto'
+  );
+}
+
+// ---------------------------------------------------------------------------
+// STAMPA — apre una finestra con il biglietto e invoca window.print()
+// ---------------------------------------------------------------------------
 export function printTicket(d: PrintTicketData): void {
   const w = window.open('', '_blank', 'width=460,height=760');
   if (!w) {
@@ -90,11 +104,77 @@ export function printTicket(d: PrintTicketData): void {
   <script>
     window.onload = function () {
       window.focus();
-      // piccolo ritardo per dare tempo ai font di caricarsi
       setTimeout(function () { window.print(); }, 350);
     };
   </script>
 </body>
 </html>`);
   w.document.close();
+}
+
+// ---------------------------------------------------------------------------
+// DOWNLOAD PDF — genera un file PDF (A6) scaricabile
+// ---------------------------------------------------------------------------
+export async function downloadTicketPdf(d: PrintTicketData): Promise<void> {
+  const { jsPDF } = await import('jspdf');
+  const doc = new jsPDF({ unit: 'mm', format: 'a6' }); // 105 x 148.5 mm
+  const W = doc.internal.pageSize.getWidth();
+
+  // Intestazione rossa
+  doc.setFillColor(220, 38, 38);
+  doc.rect(0, 0, W, 26, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.text('CFLM', W / 2, 9, { align: 'center' });
+  doc.setFont('times', 'bold');
+  doc.setFontSize(16);
+  doc.text(doc.splitTextToSize(d.eventTitle.toUpperCase(), W - 16), W / 2, 17, {
+    align: 'center',
+  });
+
+  // Intestatario
+  let y = 38;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(110, 110, 110);
+  doc.text('Biglietto di', W / 2, y, { align: 'center' });
+  y += 6;
+  doc.setFont('times', 'bold');
+  doc.setFontSize(15);
+  doc.setTextColor(20, 20, 20);
+  doc.text(d.holderName, W / 2, y, { align: 'center' });
+  y += 8;
+
+  // Dettagli evento
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9.5);
+  doc.setTextColor(50, 50, 50);
+  for (const line of [
+    d.eventDate ? `Data:  ${d.eventDate}` : null,
+    d.eventTime ? `Orario:  ${d.eventTime}` : null,
+    d.eventLocation ? `Luogo:  ${d.eventLocation}` : null,
+  ]) {
+    if (!line) continue;
+    doc.text(line, W / 2, y, { align: 'center' });
+    y += 5.5;
+  }
+  y += 2;
+
+  // QR
+  const qrSize = 46;
+  doc.addImage(d.qrDataUrl, 'PNG', (W - qrSize) / 2, y, qrSize, qrSize);
+  y += qrSize + 6;
+  doc.setFontSize(8);
+  doc.setTextColor(110, 110, 110);
+  doc.text("Presenta questo QR all'ingresso", W / 2, y, { align: 'center' });
+  y += 6;
+
+  // Link di fallback
+  doc.setFont('courier', 'normal');
+  doc.setFontSize(6);
+  doc.setTextColor(90, 90, 90);
+  doc.text(doc.splitTextToSize(d.url, W - 12), W / 2, y, { align: 'center' });
+
+  doc.save(`biglietto-${slug(d.holderName)}.pdf`);
 }
