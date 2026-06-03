@@ -7,11 +7,12 @@ import {
   type NewPerson,
 } from '../../lib/api';
 import { ticketUrl, qrDataUrl } from '../../lib/qr';
-import { formatDateTime } from '../../lib/format';
+import { formatDate, formatDateTime } from '../../lib/format';
+import { printTicket } from '../../lib/print';
 import { useAdminEvent } from './AdminLayout';
 import { StatusBadge } from '../../components/StatusBadge';
 import { Spinner } from '../../components/Spinner';
-import type { TicketRow } from '../../types';
+import type { EventRow, TicketRow } from '../../types';
 
 export function TicketsAdmin() {
   const { event } = useAdminEvent();
@@ -194,18 +195,39 @@ export function TicketsAdmin() {
         )}
       </div>
 
-      {qrTicket && <QrModal ticket={qrTicket} onClose={() => setQrTicket(null)} />}
+      {qrTicket && <QrModal ticket={qrTicket} event={event} onClose={() => setQrTicket(null)} />}
     </div>
   );
 }
 
-function QrModal({ ticket, onClose }: { ticket: TicketRow; onClose: () => void }) {
+function QrModal({
+  ticket,
+  event,
+  onClose,
+}: {
+  ticket: TicketRow;
+  event: EventRow;
+  onClose: () => void;
+}) {
   const [qr, setQr] = useState('');
   const url = ticketUrl(ticket.token);
 
   useEffect(() => {
     qrDataUrl(url).then(setQr);
   }, [url]);
+
+  function onPrint() {
+    if (!qr) return;
+    printTicket({
+      holderName: ticket.holder_name,
+      qrDataUrl: qr,
+      url,
+      eventTitle: event.title,
+      eventDate: event.starts_at ? formatDate(event.starts_at) : null,
+      eventTime: event.time_label,
+      eventLocation: event.location,
+    });
+  }
 
   return (
     <div
@@ -227,6 +249,9 @@ function QrModal({ ticket, onClose }: { ticket: TicketRow; onClose: () => void }
         <div className="row" style={{ justifyContent: 'center', marginTop: 12 }}>
           <button className="btn secondary sm" onClick={() => navigator.clipboard.writeText(url)}>
             Copia link
+          </button>
+          <button className="btn cyan sm" onClick={onPrint} disabled={!qr}>
+            🖨️ Stampa
           </button>
           <button className="btn sm" onClick={onClose}>Chiudi</button>
         </div>
