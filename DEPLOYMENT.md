@@ -23,6 +23,7 @@ Apri **SQL Editor** nella dashboard Supabase ed esegui, **in ordine**, il conten
 3. `supabase/migrations/0003_rls.sql`
 4. `supabase/migrations/0004_seed.sql`  ← crea l'evento "BEVE COMUNQUE VADA"
 5. `supabase/migrations/0005_list_name.sql`  ← campo "lista di appartenenza"
+6. `supabase/migrations/0006_public_list.sql`  ← lista visibile nella pagina pubblica
 
 > In alternativa, con la **Supabase CLI**:
 > ```bash

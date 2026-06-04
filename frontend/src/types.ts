@@ -43,6 +43,7 @@ export interface Profile {
 // Output della RPC public_get_ticket (vista pubblica, no auth).
 export interface PublicTicket {
   holder_name: string;
+  list_name: string | null;
   status: TicketStatus;
   validated_at: string | null;
   validator_name: string | null;

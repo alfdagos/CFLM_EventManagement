@@ -63,6 +63,7 @@ export function TicketView() {
 
   const ticketData = (): PrintTicketData => ({
     holderName: ticket.holder_name,
+    listName: ticket.list_name,
     qrDataUrl: qr,
     url: ticketUrl(token),
     eventTitle: ticket.event_title,
@@ -85,6 +86,11 @@ export function TicketView() {
 
       <div className="card center">
         <p className="subtitle">Biglietto di {ticket.holder_name}</p>
+        {ticket.list_name && (
+          <p className="muted" style={{ marginTop: -6 }}>
+            Lista: <strong style={{ color: 'var(--red-soft)' }}>{ticket.list_name}</strong>
+          </p>
+        )}
 
         {valid ? (
           <>

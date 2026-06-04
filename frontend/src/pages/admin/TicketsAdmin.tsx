@@ -460,6 +460,7 @@ function QrModal({
 
   const ticketData = (): PrintTicketData => ({
     holderName: ticket.holder_name,
+    listName: ticket.list_name,
     qrDataUrl: qr,
     url,
     eventTitle: event.title,

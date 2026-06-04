@@ -4,6 +4,7 @@
 
 export interface PrintTicketData {
   holderName: string;
+  listName?: string | null;
   qrDataUrl: string;
   url: string;
   eventTitle: string;
@@ -68,6 +69,8 @@ export function printTicket(d: PrintTicketData): void {
   .body { padding: 18px; text-align: center; }
   .holder { font-size: 13px; color: #666; }
   .holder b { display: block; font-size: 20px; color: #111; margin-top: 2px; }
+  .list { margin-top: 6px; font-size: 13px; font-weight: 600; color: #dc2626; }
+  .list span { font-weight: 400; color: #666; }
   ul.meta { list-style: none; padding: 0; margin: 14px 0; text-align: left; display: inline-block; }
   ul.meta li { padding: 4px 0; font-size: 14px; }
   ul.meta li span { display: inline-block; width: 22px; }
@@ -92,6 +95,7 @@ export function printTicket(d: PrintTicketData): void {
     </div>
     <div class="body">
       <div class="holder">Biglietto di<b>${esc(d.holderName)}</b></div>
+      ${d.listName ? `<div class="list"><span>Lista:</span> ${esc(d.listName)}</div>` : ''}
       ${meta ? `<ul class="meta">${meta}</ul>` : ''}
       <div class="qr"><img src="${d.qrDataUrl}" alt="QR Code" /></div>
       <p class="hint">Presenta questo QR all'ingresso</p>
@@ -144,7 +148,18 @@ export async function downloadTicketPdf(d: PrintTicketData): Promise<void> {
   doc.setFontSize(15);
   doc.setTextColor(20, 20, 20);
   doc.text(d.holderName, W / 2, y, { align: 'center' });
-  y += 8;
+  y += 7;
+
+  // Lista di appartenenza (se presente)
+  if (d.listName) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(220, 38, 38);
+    doc.text(`Lista: ${d.listName}`, W / 2, y, { align: 'center' });
+    y += 6;
+  } else {
+    y += 1;
+  }
 
   // Dettagli evento
   doc.setFont('helvetica', 'normal');
