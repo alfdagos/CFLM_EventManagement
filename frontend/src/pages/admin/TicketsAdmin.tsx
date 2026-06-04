@@ -4,6 +4,7 @@ import {
   createTickets,
   revokeTicket,
   restoreTicket,
+  updateTicket,
   type NewPerson,
 } from '../../lib/api';
 import { ticketUrl, qrDataUrl } from '../../lib/qr';
@@ -14,7 +15,7 @@ import { StatusBadge } from '../../components/StatusBadge';
 import { Spinner } from '../../components/Spinner';
 import type { EventRow, TicketRow } from '../../types';
 
-type SortKey = 'holder_name' | 'status' | 'created_at' | 'validated_at';
+type SortKey = 'holder_name' | 'list_name' | 'status' | 'created_at' | 'validated_at';
 type SortDir = 'asc' | 'desc';
 const PAGE_SIZES = [10, 25, 50, 100];
 
@@ -24,9 +25,11 @@ export function TicketsAdmin() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [bulk, setBulk] = useState('');
+  const [batchList, setBatchList] = useState(''); // lista di appartenenza per il batch
   const [working, setWorking] = useState(false);
   const [msg, setMsg] = useState('');
   const [qrTicket, setQrTicket] = useState<TicketRow | null>(null);
+  const [editing, setEditing] = useState<TicketRow | null>(null);
 
   // Ordinamento e paginazione
   const [sortKey, setSortKey] = useState<SortKey>('created_at');
@@ -50,7 +53,8 @@ export function TicketsAdmin() {
     return tickets.filter(
       (t) =>
         t.holder_name.toLowerCase().includes(q) ||
-        (t.holder_email ?? '').toLowerCase().includes(q)
+        (t.holder_email ?? '').toLowerCase().includes(q) ||
+        (t.list_name ?? '').toLowerCase().includes(q)
     );
   }, [tickets, query]);
 
@@ -61,6 +65,8 @@ export function TicketsAdmin() {
       switch (sortKey) {
         case 'holder_name':
           return t.holder_name.toLowerCase();
+        case 'list_name':
+          return (t.list_name ?? '').toLowerCase();
         case 'status':
           return t.status;
         case 'created_at':
@@ -97,20 +103,27 @@ export function TicketsAdmin() {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortKey(key);
-      setSortDir(key === 'holder_name' || key === 'status' ? 'asc' : 'desc');
+      const stringKeys: SortKey[] = ['holder_name', 'list_name', 'status'];
+      setSortDir(stringKeys.includes(key) ? 'asc' : 'desc');
     }
   }
 
   async function onCreate(e: React.FormEvent) {
     e.preventDefault();
-    // Una persona per riga. Formato: "Nome Cognome, email (opzionale)"
+    const defaultList = batchList.trim() || undefined;
+    // Una persona per riga. Formato: "Nome Cognome, email, lista" (email e lista opzionali).
+    // La lista per-riga sovrascrive la "lista di appartenenza" del batch.
     const people: NewPerson[] = bulk
       .split('\n')
       .map((line) => line.trim())
       .filter(Boolean)
       .map((line) => {
-        const [name, email] = line.split(',').map((s) => s.trim());
-        return { holder_name: name, holder_email: email || undefined };
+        const [name, email, list] = line.split(',').map((s) => s.trim());
+        return {
+          holder_name: name,
+          holder_email: email || undefined,
+          list_name: list || defaultList,
+        };
       })
       .filter((p) => p.holder_name);
 
@@ -121,6 +134,7 @@ export function TicketsAdmin() {
       const created = await createTickets(event.id, people);
       setMsg(`✓ Creati ${created.length} biglietti.`);
       setBulk('');
+      setBatchList('');
       reload();
     } catch {
       setMsg('Errore nella creazione dei biglietti.');
@@ -145,12 +159,13 @@ export function TicketsAdmin() {
   }
 
   function exportCsv() {
-    const header = 'nome,email,stato,creato,validato,link\n';
+    const header = 'nome,email,lista,stato,creato,validato,link\n';
     const rows = tickets
       .map((t) =>
         [
           t.holder_name,
           t.holder_email ?? '',
+          t.list_name ?? '',
           t.status,
           t.created_at,
           t.validated_at ?? '',
@@ -173,14 +188,22 @@ export function TicketsAdmin() {
       <div className="card">
         <h2>Crea biglietti</h2>
         <p className="muted">
-          Una persona per riga. Formato: <code>Nome Cognome, email</code> (l'email è
-          opzionale). Dopo la creazione potrai copiare il link o mostrare il QR.
+          Una persona per riga. Formato: <code>Nome Cognome, email, lista</code> (email e
+          lista sono opzionali). La lista per-riga ha la precedenza sulla "lista di
+          appartenenza" qui sotto, che vale per tutti i biglietti del batch.
         </p>
         <form onSubmit={onCreate}>
           <textarea
             value={bulk}
             onChange={(e) => setBulk(e.target.value)}
-            placeholder={'Mario Rossi, mario@example.com\nLucia Bianchi'}
+            placeholder={'Mario Rossi, mario@example.com\nLucia Bianchi\nGino Verdi, , VIP'}
+          />
+          <label htmlFor="batchList">Lista di appartenenza (opzionale, per tutto il batch)</label>
+          <input
+            id="batchList"
+            value={batchList}
+            onChange={(e) => setBatchList(e.target.value)}
+            placeholder="es. Amici di Mario, Staff, VIP…"
           />
           <button className="btn" type="submit" disabled={working} style={{ marginTop: 12 }}>
             {working ? 'Creazione…' : 'Crea biglietti'}
@@ -192,7 +215,7 @@ export function TicketsAdmin() {
       <div className="card">
         <div className="row" style={{ marginBottom: 12 }}>
           <input
-            placeholder="Cerca per nome o email…"
+            placeholder="Cerca per nome, email o lista…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             style={{ flex: 1, minWidth: 200 }}
@@ -211,6 +234,7 @@ export function TicketsAdmin() {
                 <thead>
                   <tr>
                     <SortTh label="Nome" col="holder_name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                    <SortTh label="Lista" col="list_name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                     <SortTh label="Stato" col="status" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                     <SortTh label="Creato" col="created_at" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                     <SortTh label="Validato" col="validated_at" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
@@ -224,11 +248,15 @@ export function TicketsAdmin() {
                         <strong>{t.holder_name}</strong>
                         {t.holder_email && <div className="muted">{t.holder_email}</div>}
                       </td>
+                      <td className="muted">{t.list_name || '—'}</td>
                       <td><StatusBadge status={t.status} /></td>
                       <td className="muted">{formatDateTime(t.created_at)}</td>
                       <td className="muted">{t.validated_at ? formatDateTime(t.validated_at) : '—'}</td>
                       <td>
                         <div className="row">
+                          <button className="btn secondary sm" onClick={() => setEditing(t)}>
+                            ✏️ Modifica
+                          </button>
                           <button className="btn secondary sm" onClick={() => void copyLink(t)}>
                             Copia link
                           </button>
@@ -247,7 +275,7 @@ export function TicketsAdmin() {
                   ))}
                   {total === 0 && (
                     <tr>
-                      <td colSpan={5} className="center muted">Nessun biglietto.</td>
+                      <td colSpan={6} className="center muted">Nessun biglietto.</td>
                     </tr>
                   )}
                 </tbody>
@@ -294,6 +322,95 @@ export function TicketsAdmin() {
       </div>
 
       {qrTicket && <QrModal ticket={qrTicket} event={event} onClose={() => setQrTicket(null)} />}
+      {editing && (
+        <EditTicketModal
+          ticket={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            reload();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function EditTicketModal({
+  ticket,
+  onClose,
+  onSaved,
+}: {
+  ticket: TicketRow;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState(ticket.holder_name);
+  const [list, setList] = useState(ticket.list_name ?? '');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setErr('Il nome non può essere vuoto.');
+      return;
+    }
+    setSaving(true);
+    setErr('');
+    try {
+      await updateTicket(ticket.id, {
+        holder_name: trimmed,
+        list_name: list.trim() || null,
+      });
+      onSaved();
+    } catch {
+      setErr('Errore nel salvataggio.');
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.7)',
+        display: 'grid',
+        placeItems: 'center',
+        zIndex: 50,
+        padding: 16,
+      }}
+    >
+      <div className="card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 380, width: '100%' }}>
+        <h3>Modifica biglietto</h3>
+        <form onSubmit={onSubmit} className="stack">
+          <div>
+            <label htmlFor="ed-name">Nome</label>
+            <input id="ed-name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+          </div>
+          <div>
+            <label htmlFor="ed-list">Lista di appartenenza</label>
+            <input
+              id="ed-list"
+              value={list}
+              onChange={(e) => setList(e.target.value)}
+              placeholder="(vuoto = nessuna)"
+            />
+          </div>
+          {err && <div className="alert err">{err}</div>}
+          <div className="row" style={{ justifyContent: 'flex-end' }}>
+            <button type="button" className="btn secondary sm" onClick={onClose}>
+              Annulla
+            </button>
+            <button type="submit" className="btn sm" disabled={saving}>
+              {saving ? 'Salvataggio…' : 'Salva'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

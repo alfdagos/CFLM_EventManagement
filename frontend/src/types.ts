@@ -23,6 +23,7 @@ export interface TicketRow {
   holder_name: string;
   holder_email: string | null;
   note: string | null;
+  list_name: string | null;
   status: TicketStatus;
   created_at: string;
   created_by: string | null;

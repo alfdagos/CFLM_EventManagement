@@ -59,6 +59,7 @@ export interface NewPerson {
   holder_name: string;
   holder_email?: string;
   note?: string;
+  list_name?: string;
 }
 
 export async function createTickets(
@@ -91,5 +92,14 @@ export async function restoreTicket(id: string): Promise<void> {
 
 export async function updateEvent(id: string, patch: Partial<EventRow>): Promise<void> {
   const { error } = await supabase.from('events').update(patch).eq('id', id);
+  if (error) throw error;
+}
+
+// Modifica nome e/o lista di appartenenza di un biglietto (solo admin via RLS).
+export async function updateTicket(
+  id: string,
+  patch: { holder_name?: string; list_name?: string | null }
+): Promise<void> {
+  const { error } = await supabase.from('tickets').update(patch).eq('id', id);
   if (error) throw error;
 }

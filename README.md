@@ -63,7 +63,7 @@ CFLM_EventManagement/
 │   │   └── context/           # AuthContext
 │   └── .env.example
 ├── supabase/
-│   ├── migrations/            # 0001 schema · 0002 funzioni · 0003 RLS · 0004 seed
+│   ├── migrations/            # 0001 schema · 0002 funzioni · 0003 RLS · 0004 seed · 0005 lista
 │   └── config.toml
 ├── .github/workflows/deploy.yml   # CI/CD → GitHub Pages
 └── DEPLOYMENT.md              # Guida passo-passo al go-live
