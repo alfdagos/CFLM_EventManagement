@@ -236,7 +236,6 @@ export function TicketsAdmin() {
                     <SortTh label="Nome" col="holder_name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                     <SortTh label="Lista" col="list_name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                     <SortTh label="Stato" col="status" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                    <SortTh label="Creato" col="created_at" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                     <SortTh label="Validato" col="validated_at" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                     <th>Azioni</th>
                   </tr>
@@ -250,7 +249,6 @@ export function TicketsAdmin() {
                       </td>
                       <td className="muted">{t.list_name || '—'}</td>
                       <td><StatusBadge status={t.status} /></td>
-                      <td className="muted">{formatDateTime(t.created_at)}</td>
                       <td className="muted">{t.validated_at ? formatDateTime(t.validated_at) : '—'}</td>
                       <td>
                         <div className="row">
@@ -275,7 +273,7 @@ export function TicketsAdmin() {
                   ))}
                   {total === 0 && (
                     <tr>
-                      <td colSpan={6} className="center muted">Nessun biglietto.</td>
+                      <td colSpan={5} className="center muted">Nessun biglietto.</td>
                     </tr>
                   )}
                 </tbody>
